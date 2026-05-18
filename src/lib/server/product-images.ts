@@ -55,8 +55,8 @@ function loadLookupMap(): Map<string, ImageLookup> {
   if (CACHE.map) return CACHE.map;
 
   const root = repoRoot();
-  const menPath = path.join(root, "enrichment", "enriched-men.json");
-  const womenPath = path.join(root, "enrichment", "enriched-woman.json");
+  const menPath = path.join(root, "enrichment", "enriched-men_OLD_ALREADY.json");
+  const womenPath = path.join(root, "enrichment", "enriched-women_OLD_ALREADY.json");
 
   const map = new Map<string, ImageLookup>();
 
@@ -84,7 +84,7 @@ export function getLocalProductImages(productUrl: string | null | undefined): { 
   const lookup = keys.map((key) => lookupMap.get(key)).find(Boolean);
   if (!lookup) return { primary: null, images: [] };
 
-  const photoIndex = lookup.lineNum;
+  const photoIndex = lookup.lineNum + 1;
   const url = `/product-images/${lookup.gender}/${photoIndex}`;
   return { primary: url, images: [url] };
 }

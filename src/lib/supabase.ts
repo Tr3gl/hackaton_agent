@@ -28,7 +28,7 @@ export async function matchProducts({
     throw new Error("Missing Supabase env vars (NEXT_PUBLIC_SUPABASE_URL, SUPABASE_ANON_KEY)");
   }
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/match_products_rpc`, {
+  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/match_products_hybrid`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -48,6 +48,36 @@ export async function matchProducts({
   }
 
   return (await response.json()) as MatchProductRow[];
+}
+
+export async function getProductById(id?: string): Promise<MatchProductRow | null> {
+  const supabaseUrl = normalizeSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
+  const anonKey = process.env.SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !anonKey) {
+    throw new Error("Missing Supabase env vars");
+  }
+
+  const trimmedId = id?.trim();
+  if (!trimmedId) {
+    return null;
+  }
+
+  const response = await fetch(`${supabaseUrl}/rest/v1/products?id=eq.${encodeURIComponent(trimmedId)}&select=id,name,price,category,product_url,image_url,attributes,tags`, {
+    method: "GET",
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+    },
+  });
+
+  if (!response.ok) {
+    console.error("Failed to fetch product:", await response.text());
+    return null;
+  }
+
+  const data = await response.json();
+  return data.length > 0 ? (data[0] as MatchProductRow) : null;
 }
 
 function normalizeSupabaseUrl(raw?: string): string | undefined {

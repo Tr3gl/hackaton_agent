@@ -37,14 +37,14 @@ function loadEnvFromFile(filePath) {
     const key = line.slice(0, index).trim();
     const value = line.slice(index + 1).trim();
     if (!process.env[key]) {
-      process.env[key] = value;
+      process.env[key] = value.replace(/^['"]|['"]$/g, ""); // Strip quotes
     }
   }
 }
 
 function parseArgs(argv) {
   const args = {
-    input: "./data/products_ready_fixed.json",
+    input: "",
     sleep: DEFAULT_SLEEP_MS,
     start: 0,
     limit: 0,
@@ -129,15 +129,16 @@ async function embedText({ apiKey, model, text }) {
   return values;
 }
 
-async function updateSupabase({ supabaseUrl, serviceKey, productUrl, payload }) {
-  const url = `${supabaseUrl}/rest/v1/products?product_url=eq.${encodeURIComponent(productUrl)}`;
+async function upsertSupabase({ supabaseUrl, serviceKey, payload }) {
+  // Using POST with Prefer: resolution=merge-duplicates to UPSERT based on the primary/unique key (product_url)
+  const url = `${supabaseUrl}/rest/v1/products?on_conflict=product_url`;
   const response = await fetch(url, {
-    method: "PATCH",
+    method: "POST",
     headers: {
       "Content-Type": "application/json",
       apikey: serviceKey,
       Authorization: `Bearer ${serviceKey}`,
-      Prefer: "return=minimal",
+      Prefer: "resolution=merge-duplicates",
     },
     body: JSON.stringify(payload),
   });
@@ -150,6 +151,11 @@ async function updateSupabase({ supabaseUrl, serviceKey, productUrl, payload }) 
 
 async function main() {
   const args = parseArgs(process.argv);
+  if (!args.input) {
+    console.error("Usage: node scripts/upload-products.mjs --input <path_to_json>");
+    process.exit(1);
+  }
+
   const envPath = path.resolve(process.cwd(), ".env.local");
   loadEnvFromFile(envPath);
 
@@ -168,6 +174,11 @@ async function main() {
   }
 
   const inputPath = path.resolve(process.cwd(), args.input);
+  if (!fs.existsSync(inputPath)) {
+    console.error(`File not found: ${inputPath}`);
+    process.exit(1);
+  }
+
   const items = JSON.parse(fs.readFileSync(inputPath, "utf8"));
 
   const start = Math.max(0, args.start);
@@ -191,16 +202,35 @@ async function main() {
 
     try {
       const embedding = await embedText({ apiKey, model, text });
-      await updateSupabase({
+      
+      // Parse price if it's a string like "1.599,99 TL" to a number, or use item.price_numeric if it exists
+      let numericPrice = item.price_numeric;
+      if (numericPrice === undefined && typeof item.price === "string") {
+        // Turkish locale formatting handling: remove dots (thousands), replace comma with dot (decimal)
+        const cleaned = item.price.replace(/TL|/g, "").trim().replace(/\./g, "").replace(/,/g, ".");
+        numericPrice = Number(cleaned);
+      }
+      if (isNaN(numericPrice)) numericPrice = 0;
+
+      const payload = {
+        name: item.name,
+        price: numericPrice,
+        category: item.category || item.category_big || "",
+        product_url: productUrl,
+        image_url: item.image_url || "",
+        description: item.description || "",
+        attributes: item.attributes || {},
+        tags: item.tags || [],
+        embedding: embedding,
+        embedding_input: text,
+      };
+
+      await upsertSupabase({
         supabaseUrl,
         serviceKey,
-        productUrl,
-        payload: {
-          embedding,
-          embedding_input: text,
-        },
+        payload,
       });
-      console.log(`Embedded ${index + 1}/${end}: ${item.name || productUrl}`);
+      console.log(`Uploaded ${index + 1}/${end}: ${item.name || productUrl}`);
     } catch (error) {
       console.error(`Failed ${index + 1}/${end}:`, error.message || error);
     }

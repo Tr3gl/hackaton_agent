@@ -1,5 +1,26 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Project Overview
+
+The Mavi Agent app provides product discovery, tiered recommendations, and PDP browsing. It integrates Supabase for product data, Gemini for semantic search and curation, and a mixed image pipeline to ensure reliable thumbnails and PDP galleries.
+
+## What We Added
+
+- Tiered curation output (good/better/best) with structured response schema and UI toggle.
+- Product detail page (PDP) gallery carousel with thumbnails.
+- Local image serving route for Men/Women photos as a fallback.
+- Robust URL normalization and lookup for product images using enriched JSON.
+- Remote image fallback from the Mavi CDN to ensure images render on cards and PDP.
+- Safer PDP route params handling to avoid invalid UUID fetches.
+
+## Image Sourcing
+
+The app prefers remote Mavi images to ensure reliable rendering. It uses one of these sources in order:
+
+1. `image_url` from Supabase.
+2. Derived CDN URL from `product_url` (`https://sky-static.mavi.com/mnresize/820/1162/<sku>_image_1.jpg`).
+3. Local image fallback via `/product-images/[gender]/[index]`.
+
 ## Getting Started
 
 First, run the development server:

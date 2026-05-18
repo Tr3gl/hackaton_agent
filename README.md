@@ -41,6 +41,27 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Environment Variables
+
+Copy `.env.example` to `.env.local` and fill in values:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `GEMINI_API_KEY`
+
+Optional overrides:
+
+- `GEMINI_MODEL`
+- `GEMINI_INTENT_MODEL`
+- `GEMINI_EMBED_MODEL`
+- `OPENWEATHER_API_KEY`
+- `USE_LOCAL_MODEL`
+- `LOCAL_LLM_URL`
+
+Server-only (scripts):
+
+- `SUPABASE_SERVICE_ROLE_KEY`
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
@@ -52,6 +73,13 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme).
+
+Recommended settings:
+
+- Root Directory: `mavi-agent`
+- Build Command: `npm run build`
+- Output Directory: default
+- Environment Variables: add the same keys from `.env.example`
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

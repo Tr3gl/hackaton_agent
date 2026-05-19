@@ -197,7 +197,7 @@ export async function POST(request: Request) {
 
     activeTier = normalizeTierName((curationResult as any)?.active_tier) || "better";
     products = tierProducts[activeTier];
-    reasoning = tierReasoning[activeTier] || FALLBACK_REASONING;
+    reasoning = tierReasoning[activeTier] || fallbackReasoning;
 
     // Determine Payment Plan
     const totalPrice = products.reduce((sum, p) => sum + (p.price || 0), 0);

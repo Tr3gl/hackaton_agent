@@ -16,7 +16,7 @@ interface SearchBarProps {
   voiceStartTitle: string;
   voiceStopTitle: string;
   alertSpeechNotSupported: string;
-  placeholderQueries: string[];
+  placeholderQueries: readonly string[];
 }
 
 export function SearchBar({

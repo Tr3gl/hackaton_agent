@@ -75,7 +75,12 @@ export async function POST(request: Request) {
     tool_calls_log.push({ 
       tool: "extract_intent", 
       status: "done", 
-      summary: formatIntentSummary(language, intent.semantic_queries, intent.filters, intent.budget),
+      summary: formatIntentSummary(
+        language,
+        intent.semantic_queries,
+        intent.filters as Record<string, unknown>,
+        intent.budget,
+      ),
       result: intent,
     });
   }

@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   }
 
   const fallbackReasoning = strings.fallbackReasoning;
-  let reasoning = fallbackReasoning;
+  let reasoning: string = fallbackReasoning;
   let products: AgentResponse["products"] = [];
   const tool_calls_log: ToolCallLog[] = [];
   let payment_plan: PaymentPlan | null = null;

@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const ALLOWED_GENDERS = new Set(["men", "women"]);
 
@@ -8,13 +8,17 @@ function repoRoot(): string {
   return path.resolve(process.cwd(), "..");
 }
 
-export async function GET(_: Request, { params }: { params: { gender: string; index: string } }) {
-  const gender = params.gender?.toLowerCase();
+export async function GET(
+  _: NextRequest,
+  { params }: { params: Promise<{ gender: string; index: string }> }
+) {
+  const resolvedParams = await params;
+  const gender = resolvedParams.gender?.toLowerCase();
   if (!ALLOWED_GENDERS.has(gender)) {
     return NextResponse.json({ error: "Invalid gender" }, { status: 400 });
   }
 
-  const index = Number(params.index);
+  const index = Number(resolvedParams.index);
   if (!Number.isFinite(index) || index <= 0) {
     return NextResponse.json({ error: "Invalid index" }, { status: 400 });
   }

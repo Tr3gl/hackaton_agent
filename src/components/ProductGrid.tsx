@@ -1,6 +1,6 @@
 import React from "react";
 import { ProductCard } from "./ProductCard";
-import type { Product } from "@/lib/types";
+import type { Language, Product } from "@/lib/types";
 
 interface ProductGridProps {
   products: Product[];
@@ -8,9 +8,23 @@ interface ProductGridProps {
   loading?: boolean;
   selectedIds?: Set<string>;
   onToggle?: (id: string) => void;
+  emptyText: string;
+  defaultLookName: string;
+  noImageText: string;
+  language: Language;
 }
 
-export function ProductGrid({ products, error, loading, selectedIds, onToggle }: ProductGridProps) {
+export function ProductGrid({
+  products,
+  error,
+  loading,
+  selectedIds,
+  onToggle,
+  emptyText,
+  defaultLookName,
+  noImageText,
+  language,
+}: ProductGridProps) {
   if (error) {
     return (
       <div className="rounded-2xl border border-clay-500/30 bg-clay-500/10 px-4 py-3 text-sm text-clay-500">
@@ -32,14 +46,14 @@ export function ProductGrid({ products, error, loading, selectedIds, onToggle }:
   if (products.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-sand-200 px-4 py-12 text-center text-sm text-ink-700">
-        No products yet. Try describing what you are looking for.
+        {emptyText}
       </div>
     );
   }
 
   // Group products by look_name
   const groupedProducts = products.reduce((acc, product) => {
-    const lookName = product.look_name || "Suggested Items";
+    const lookName = product.look_name || defaultLookName;
     if (!acc[lookName]) {
       acc[lookName] = [];
     }
@@ -66,6 +80,8 @@ export function ProductGrid({ products, error, loading, selectedIds, onToggle }:
                 product={product} 
                 isSelected={selectedIds?.has(product.id)}
                 onToggle={onToggle}
+                noImageText={noImageText}
+                language={language}
               />
             ))}
           </div>

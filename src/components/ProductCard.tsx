@@ -2,14 +2,24 @@ import React from "react";
 import Link from "next/link";
 import { CheckCircle2, PlusCircle } from "lucide-react";
 import type { Product } from "@/lib/types";
+import type { Language } from "@/lib/types";
+import { formatNumber } from "@/lib/i18n";
 
 interface ProductCardProps {
   product: Product;
   isSelected?: boolean;
   onToggle?: (id: string) => void;
+  noImageText: string;
+  language: Language;
 }
 
-export function ProductCard({ product, isSelected = false, onToggle }: ProductCardProps) {
+export function ProductCard({
+  product,
+  isSelected = false,
+  onToggle,
+  noImageText,
+  language,
+}: ProductCardProps) {
   const primaryImage = product.images?.[0] || product.image_url;
   const content = (
     <article className={`flex flex-col gap-3 rounded-2xl border bg-white p-4 transition-all hover:shadow-lg group cursor-pointer ${isSelected ? 'border-sage-500 shadow-md ring-1 ring-sage-500' : 'border-sand-200 hover:border-sage-400/50'}`}>
@@ -21,7 +31,7 @@ export function ProductCard({ product, isSelected = false, onToggle }: ProductCa
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-ink-500">No image</div>
+          <div className="flex h-full items-center justify-center text-ink-500">{noImageText}</div>
         )}
         
         {onToggle && (
@@ -48,7 +58,7 @@ export function ProductCard({ product, isSelected = false, onToggle }: ProductCa
           <div className="text-xs uppercase tracking-[0.2em] text-ink-700">
             {product.category}
           </div>
-          <div className="text-sm font-medium text-ink-900">{product.price} TL</div>
+          <div className="text-sm font-medium text-ink-900">{formatNumber(Number(product.price || 0), language)} TL</div>
         </div>
       </div>
       <div className="flex flex-wrap gap-2 mt-auto">

@@ -2,7 +2,10 @@ export interface AgentRequest {
   query: string;
   history?: ConversationMessage[];
   image?: string;
+  language?: Language;
 }
+
+export type Language = "en" | "tr";
 
 export interface ConversationMessage {
   role: "user" | "assistant";

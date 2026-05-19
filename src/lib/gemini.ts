@@ -1,4 +1,5 @@
-import type { ConversationMessage } from "./types";
+import type { ConversationMessage, Language } from "./types";
+import { getStrings } from "@/lib/i18n";
 
 const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
 const DEFAULT_EMBED_MODEL = "gemini-embedding-001";
@@ -261,9 +262,17 @@ function normalizeFilters(raw: any): SearchIntentFilters {
 // Intent extraction ALWAYS uses Gemini API — local models are too small for reliable JSON extraction
 const DEFAULT_INTENT_MODEL = "gemini-3.1-flash-lite";
 
-export async function extractSearchIntent(query: string, history: ConversationMessage[] = []): Promise<SearchIntent> {
+export async function extractSearchIntent(
+  query: string,
+  history: ConversationMessage[] = [],
+  language: Language = "en",
+): Promise<SearchIntent> {
+  const strings = getStrings(language);
   const historyText = history.length > 0 ? history.map(h => `${h.role === 'user' ? 'User' : 'Agent'}: ${h.content}`).join("\n") : "None";
-  const prompt = `${INTENT_EXTRACTION_PROMPT}\n\nRecent conversation:\n${historyText}\n\nUser current query: "${query}"`;
+  const languageNote = language === "tr"
+    ? "LANGUAGE: Write the reasoning field in Turkish. Keep semantic_queries and filters in English."
+    : "LANGUAGE: Write the reasoning field in English.";
+  const prompt = `${INTENT_EXTRACTION_PROMPT}\n\n${languageNote}\n\nRecent conversation:\n${historyText}\n\nUser current query: "${query}"`;
   
   const defaultIntent: SearchIntent = {
     semantic_queries: [query],
@@ -271,7 +280,7 @@ export async function extractSearchIntent(query: string, history: ConversationMe
     budget: { min: null, max: null },
     garment_types: [],
     location: null,
-    reasoning: "Using original query as fallback",
+    reasoning: strings.intentFallbackReasoning,
   };
 
   try {
@@ -382,7 +391,14 @@ export async function extractSearchIntent(query: string, history: ConversationMe
   }
 }
 
-export async function curateProducts(query: string, products: any[], intent?: SearchIntent, history: ConversationMessage[] = []): Promise<any> {
+export async function curateProducts(
+  query: string,
+  products: any[],
+  intent?: SearchIntent,
+  history: ConversationMessage[] = [],
+  language: Language = "en",
+): Promise<any> {
+  const strings = getStrings(language);
   // Format products with richer attribute context for the stylist
   const productContext = products.map(p => {
     const attrs = p.attributes || {};
@@ -415,6 +431,10 @@ export async function curateProducts(query: string, products: any[], intent?: Se
   }
 
   const historyText = history.length > 0 ? history.map(h => `${h.role === 'user' ? 'User' : 'Agent'}: ${h.content}`).join("\n") : "None";
+  const languageNote = language === "tr"
+    ? "IMPORTANT: All look_name, description, and follow_up_question fields MUST be in Turkish."
+    : "IMPORTANT: All look_name, description, and follow_up_question fields MUST be in English.";
+
   const prompt = `You are a professional fashion stylist.
 Recent conversation:
 ${historyText}
@@ -424,6 +444,8 @@ ${intentSection}
 Here are the top items from our catalog that match the semantic intent:
 ${productContext}
 ${budgetSection}${garmentSection}
+
+${languageNote}
 
 YOUR TASK:
 1. Act as a creative stylist. Group the items into 1 to 3 distinct "looks" (e.g., "Look 1: Lightweight Skirt Setup").
@@ -561,15 +583,15 @@ You MUST respond in pure JSON format exactly matching this structure, with no ma
     return {
       looks: [
         {
-          look_name: "Fallback Set",
+          look_name: strings.fallbackLookName,
           tiers: {
-            good: { selected_ids: fallbackIds, total_price: 0, description: "Found some great items for you." },
-            better: { selected_ids: fallbackIds, total_price: 0, description: "Found some great items for you." },
-            best: { selected_ids: fallbackIds, total_price: 0, description: "Found some great items for you." }
+            good: { selected_ids: fallbackIds, total_price: 0, description: strings.fallbackTierDescription },
+            better: { selected_ids: fallbackIds, total_price: 0, description: strings.fallbackTierDescription },
+            best: { selected_ids: fallbackIds, total_price: 0, description: strings.fallbackTierDescription }
           }
         }
       ],
-      follow_up_question: "Would you like a different style direction?"
+      follow_up_question: strings.fallbackFollowUp
     };
   }
 }

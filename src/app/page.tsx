@@ -1,15 +1,23 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import type { AgentResponse, ConversationMessage, TierName } from "@/lib/types";
+import type { AgentResponse, ConversationMessage, Language, TierName } from "@/lib/types";
 import { SearchBar } from "@/components/SearchBar";
 import { ProductGrid } from "@/components/ProductGrid";
 import { AgentThinkingPanel } from "@/components/AgentThinkingPanel";
 import { ReasoningBanner } from "@/components/ReasoningBanner";
 import { BundleBar } from "@/components/BundleBar";
 import { WeatherWidget } from "@/components/WeatherWidget";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import {
+  formatPaymentPlanLabel,
+  formatPaymentPlanTip,
+  getStrings,
+  normalizeLanguage,
+} from "@/lib/i18n";
 
 export default function Home() {
+  const [language, setLanguage] = useState<Language>("en");
   const [query, setQuery] = useState("");
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [response, setResponse] = useState<AgentResponse | null>(null);
@@ -18,6 +26,19 @@ export default function Home() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeTier, setActiveTier] = useState<TierName>("better");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const strings = getStrings(language);
+
+  useEffect(() => {
+    const cookieMatch = document.cookie.match(/(?:^|; )lang=([^;]+)/);
+    const stored = cookieMatch?.[1] || localStorage.getItem("lang");
+    const resolved = normalizeLanguage(stored);
+    setLanguage(resolved);
+    document.documentElement.lang = resolved;
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -35,7 +56,7 @@ export default function Home() {
       const res = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: nextQuery, history: messages }),
+        body: JSON.stringify({ query: nextQuery, history: messages, language }),
       });
 
       if (!res.ok) {
@@ -90,28 +111,27 @@ export default function Home() {
   // Recalculate payment plan dynamically based on selected items
   let dynamicPaymentPlan = response?.payment_plan || null;
   const planTotal = selectedProducts.length > 0 ? totalPrice : baseTierTotal;
+  let paymentPlanLabel: string | undefined;
+  let paymentPlanTip: string | undefined;
   if (dynamicPaymentPlan && planTotal > 0) {
     const originalType = dynamicPaymentPlan.type;
     let monthly = undefined;
-    let label = `${planTotal.toLocaleString()} TL`;
 
     if (originalType === "bnpl_3") {
       monthly = Math.round(planTotal / 3);
-      label = `3 × ${monthly.toLocaleString()} TL`;
     } else if (originalType === "installment_6") {
       monthly = Math.round(planTotal / 6);
-      label = `6 × ${monthly.toLocaleString()} TL`;
     } else if (originalType === "split") {
       monthly = Math.round(planTotal / 2);
-      label = `2 × ${monthly.toLocaleString()} TL`;
     }
 
     dynamicPaymentPlan = {
       ...dynamicPaymentPlan,
       total: planTotal,
       monthly,
-      label,
     };
+    paymentPlanLabel = formatPaymentPlanLabel(language, originalType, planTotal, monthly);
+    paymentPlanTip = formatPaymentPlanTip(language, originalType);
   }
 
   const handleToggleProduct = (id: string) => {
@@ -137,19 +157,27 @@ export default function Home() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-col gap-2">
             <span className="text-xs uppercase tracking-[0.35em] text-ink-700">
-              AI Shopping Agent
+              {strings.heroKicker}
             </span>
             <h1 className="text-display text-4xl font-semibold text-ink-900 sm:text-5xl">
-              Fashion search that understands context.
+              {strings.heroTitle}
             </h1>
           </div>
-          <div className="rounded-full bg-sand-100 px-4 py-2 text-sm text-ink-700">
-            Gemini flash mode
+          <div className="flex items-center gap-3">
+            <LanguageToggle
+              language={language}
+              label={strings.languageLabel}
+              englishLabel={strings.languageEnglish}
+              turkishLabel={strings.languageTurkish}
+              onChange={setLanguage}
+            />
+            <div className="rounded-full bg-sand-100 px-4 py-2 text-sm text-ink-700">
+              {strings.modeBadge}
+            </div>
           </div>
         </div>
         <p className="max-w-2xl text-base text-ink-700 sm:text-lg">
-          Ask for outfits by mood, weather, or occasion. The agent will call
-          tools, summarize its reasoning, and return the most relevant items.
+          {strings.heroSubtitle}
         </p>
       </header>
 
@@ -170,7 +198,7 @@ export default function Home() {
                   <span className={`text-[10px] font-bold uppercase tracking-widest block mb-2 ${
                     msg.role === 'user' ? 'text-ink-400' : 'text-sage-600'
                   }`}>
-                    {msg.role === 'user' ? 'You' : 'Agent'}
+                    {msg.role === 'user' ? strings.youLabel : strings.agentLabel}
                   </span>
                   <div className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap">
                     {msg.content}
@@ -187,18 +215,27 @@ export default function Home() {
             onSubmit={handleSubmit}
             loading={loading}
             onPlaceholderClick={handlePlaceholderClick}
+            language={language}
+            label={strings.searchLabel}
+            placeholder={strings.searchPlaceholder}
+            searchButton={strings.searchButton}
+            searchingButton={strings.searchingButton}
+            voiceStartTitle={strings.voiceStartTitle}
+            voiceStopTitle={strings.voiceStopTitle}
+            alertSpeechNotSupported={strings.alertSpeechNotSupported}
+            placeholderQueries={strings.placeholderQueries}
           />
         </div>
 
         <section className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr] items-start">
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-display text-2xl text-ink-900">Results</h2>
+              <h2 className="text-display text-2xl text-ink-900">{strings.resultsTitle}</h2>
               <div className="flex items-center gap-3">
                 {response?.tier_products && (
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-ink-500">
-                      Tier
+                      {strings.tierLabel}
                     </span>
                     <div className="flex items-center rounded-full border border-sand-200 bg-white p-1">
                       {(["good", "better", "best"] as TierName[]).map((tier) => (
@@ -212,19 +249,19 @@ export default function Home() {
                               : "text-ink-600 hover:text-ink-900"
                           }`}
                         >
-                          {tier}
+                          {strings.tierNames[tier]}
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
                 <span className="text-xs font-medium uppercase tracking-[0.2em] text-sage-600 bg-sage-50 px-3 py-1 rounded-full">
-                  Track {response?.track ?? "A"}
+                  {strings.trackLabel} {response?.track ?? "A"}
                 </span>
               </div>
             </div>
 
-            <ReasoningBanner reasoning={reasoningText} />
+            <ReasoningBanner reasoning={reasoningText} fallback={strings.reasoningFallback} />
 
             <ProductGrid 
               products={products} 
@@ -232,14 +269,23 @@ export default function Home() {
               loading={loading}
               selectedIds={selectedIds}
               onToggle={handleToggleProduct}
+              emptyText={strings.noProducts}
+              defaultLookName={strings.suggestedItems}
+              noImageText={strings.noImage}
+              language={language}
             />
           </div>
 
           <div className="sticky top-6 flex flex-col gap-4">
             {response?.weather && (
-              <WeatherWidget weather={response.weather} />
+              <WeatherWidget weather={response.weather} language={language} />
             )}
-            <AgentThinkingPanel logs={response?.tool_calls_log ?? []} />
+            <AgentThinkingPanel
+              logs={response?.tool_calls_log ?? []}
+              title={strings.agentThinkingTitle}
+              emptyText={strings.agentThinkingEmpty}
+              language={language}
+            />
           </div>
         </section>
       </main>
@@ -248,6 +294,12 @@ export default function Home() {
         itemCount={selectedProducts.length}
         totalPrice={totalPrice}
         paymentPlan={dynamicPaymentPlan}
+        language={language}
+        bundleTotalLabel={strings.bundleTotal}
+        addSelectedLabel={strings.addSelected}
+        addedLabel={strings.addedToCart}
+        paymentLabel={paymentPlanLabel}
+        paymentTip={paymentPlanTip}
       />
     </div>
   );

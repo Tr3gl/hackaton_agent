@@ -1,8 +1,9 @@
 import React from "react";
-import type { WeatherData } from "@/lib/types";
+import type { Language, WeatherData } from "@/lib/types";
 
 interface WeatherWidgetProps {
   weather: WeatherData;
+  language: Language;
 }
 
 function getWeatherIcon(condition: string): string {
@@ -17,8 +18,9 @@ function getWeatherIcon(condition: string): string {
   return "🌤️";
 }
 
-export function WeatherWidget({ weather }: WeatherWidgetProps) {
+export function WeatherWidget({ weather, language }: WeatherWidgetProps) {
   const icon = getWeatherIcon(weather.condition);
+  const windUnit = language === "tr" ? "km/sa" : "km/h";
 
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-sand-200 bg-gradient-to-r from-sage-600/5 to-sage-400/10 px-4 py-3 shadow-sm">
@@ -31,7 +33,7 @@ export function WeatherWidget({ weather }: WeatherWidgetProps) {
           <span className="font-bold">{weather.temp_c}°C</span>
           <span className="text-ink-700">{weather.condition}</span>
           {weather.wind_speed > 0 && (
-            <span className="text-ink-700">💨 {weather.wind_speed} km/h</span>
+            <span className="text-ink-700">💨 {weather.wind_speed} {windUnit}</span>
           )}
         </div>
       </div>

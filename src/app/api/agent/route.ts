@@ -3,6 +3,16 @@ import { geminiEmbed, extractSearchIntent, curateProducts } from "@/lib/gemini";
 import { matchProducts } from "@/lib/supabase";
 import { executeTool } from "@/lib/tools";
 import { getLocalProductImages, getRemoteProductImages } from "@/lib/server/product-images";
+import {
+  formatCurationSummary,
+  formatIntentSummary,
+  formatPaymentSummary,
+  formatSearchSummary,
+  formatWeatherSummary,
+  formatNumber,
+  getStrings,
+  normalizeLanguage,
+} from "@/lib/i18n";
 import type {
   AgentRequest,
   AgentResponse,
@@ -11,10 +21,8 @@ import type {
   WeatherData,
   TierName,
   TieredLook,
+  Language,
 } from "@/lib/types";
-
-const FALLBACK_REASONING =
-  "Here are some items you might like based on your search.";
 
 export async function POST(request: Request) {
   let payload: AgentRequest | null = null;
@@ -27,18 +35,21 @@ export async function POST(request: Request) {
 
   const query = payload?.query?.trim();
   const history = payload?.history || [];
+  const language = normalizeLanguage(payload?.language);
+  const strings = getStrings(language);
   if (!query) {
     return NextResponse.json({ error: "Query is required" }, { status: 400 });
   }
 
-  let reasoning = FALLBACK_REASONING;
+  const fallbackReasoning = strings.fallbackReasoning;
+  let reasoning = fallbackReasoning;
   let products: AgentResponse["products"] = [];
   const tool_calls_log: ToolCallLog[] = [];
   let payment_plan: PaymentPlan | null = null;
   let weather: WeatherData | null = null;
   let tieredLooks: TieredLook[] = [];
   let tierProducts = createEmptyTierProducts();
-  let tierReasoning = createEmptyTierReasoning();
+  let tierReasoning = createEmptyTierReasoning(fallbackReasoning);
   let followUpQuestion = "";
   let activeTier: TierName = "better";
   
@@ -56,15 +67,15 @@ export async function POST(request: Request) {
       budget: { min: null, max: null },
       garment_types: [],
       location: null,
-      reasoning: "Direct matching for your search.",
+      reasoning: strings.directMatchReasoning,
     };
   } else {
     // Phase 1: Structured Intent Extraction
-    intent = await extractSearchIntent(query, history);
+    intent = await extractSearchIntent(query, history, language);
     tool_calls_log.push({ 
       tool: "extract_intent", 
       status: "done", 
-      summary: `Intent: "${intent.semantic_queries.join(" | ")}" | Filters: ${JSON.stringify(intent.filters)} | Budget: ${intent.budget.min || '∞'}–${intent.budget.max || '∞'} TL`,
+      summary: formatIntentSummary(language, intent.semantic_queries, intent.filters, intent.budget),
       result: intent,
     });
   }
@@ -97,7 +108,13 @@ export async function POST(request: Request) {
       tool_calls_log.push({ 
         tool: "get_weather", 
         status: "done", 
-        summary: `${weather.location}: ${weather.temp_c}°C, ${weather.condition}, wind ${weather.wind_speed} km/h` 
+        summary: formatWeatherSummary(
+          language,
+          weather.location,
+          weather.temp_c,
+          weather.condition,
+          weather.wind_speed,
+        ),
       });
     }
 
@@ -134,20 +151,44 @@ export async function POST(request: Request) {
       }
     });
 
-    tool_calls_log.push({ tool: "search_catalog", status: "done", summary: `Found ${matches.length} unique products across ${validEmbeddings.length} semantic queries (with ${Object.keys(supabaseFilter).length} DB filters)` });
+    tool_calls_log.push({
+      tool: "search_catalog",
+      status: "done",
+      summary: formatSearchSummary(
+        language,
+        matches.length,
+        validEmbeddings.length,
+        Object.keys(supabaseFilter).length,
+      ),
+    });
     
     // Client-side attribute filtering for fields the Supabase RPC doesn't handle
     const filtered = matches;
 
     // Phase 3: LLM Curation (Stylist Selection) — pass intent for budget/garment enforcement
-    const curationResult = await curateProducts(query, filtered, intent, history);
+    const curationResult = await curateProducts(query, filtered, intent, history, language);
     const rawLooks = Array.isArray(curationResult?.looks) ? curationResult.looks : [];
     followUpQuestion = typeof curationResult?.follow_up_question === "string" ? curationResult.follow_up_question : "";
     tieredLooks = normalizeLooks(rawLooks);
-    tool_calls_log.push({ tool: "curate_products", status: "done", summary: `Built ${tieredLooks.length} coordinated looks.` });
+    tool_calls_log.push({
+      tool: "curate_products",
+      status: "done",
+      summary: formatCurationSummary(language, tieredLooks.length),
+    });
 
-    tierProducts = buildTierProducts(tieredLooks, filtered, matches, intent.reasoning || "");
-    tierReasoning = buildTierReasoning(tieredLooks, followUpQuestion);
+    tierProducts = buildTierProducts(tieredLooks, filtered, matches, intent.reasoning || "", {
+      suggestedItems: strings.suggestedItems,
+      moreResults: strings.moreResults,
+      moreResultsDescription: strings.moreResultsDescription,
+      suggestedDescription: strings.suggestedDescription,
+    });
+    tierReasoning = buildTierReasoning(
+      tieredLooks,
+      followUpQuestion,
+      fallbackReasoning,
+      strings.totalLabel,
+      language,
+    );
 
     activeTier = normalizeTierName((curationResult as any)?.active_tier) || "better";
     products = tierProducts[activeTier];
@@ -167,7 +208,7 @@ export async function POST(request: Request) {
       tool_calls_log.push({ 
         tool: "suggest_payment_plan", 
         status: "done", 
-        summary: `Suggested payment plan: ${paymentResult.scheme}` 
+        summary: formatPaymentSummary(language, paymentResult.scheme),
       });
 
       payment_plan = {
@@ -209,8 +250,8 @@ function createEmptyTierProducts(): Record<TierName, AgentResponse["products"]> 
   return { good: [], better: [], best: [] };
 }
 
-function createEmptyTierReasoning(): Record<TierName, string> {
-  return { good: FALLBACK_REASONING, better: FALLBACK_REASONING, best: FALLBACK_REASONING };
+function createEmptyTierReasoning(fallbackReasoning: string): Record<TierName, string> {
+  return { good: fallbackReasoning, better: fallbackReasoning, best: fallbackReasoning };
 }
 
 function normalizeLooks(rawLooks: any[]): TieredLook[] {
@@ -258,21 +299,27 @@ function normalizeLookTier(raw: any) {
   return { selected_ids: ids, total_price: totalPrice, description };
 }
 
-function buildTierReasoning(looks: TieredLook[], followUpQuestion: string): Record<TierName, string> {
-  const reasoning = createEmptyTierReasoning();
+function buildTierReasoning(
+  looks: TieredLook[],
+  followUpQuestion: string,
+  fallbackReasoning: string,
+  totalLabel: string,
+  language: Language,
+): Record<TierName, string> {
+  const reasoning = createEmptyTierReasoning(fallbackReasoning);
   (Object.keys(reasoning) as TierName[]).forEach((tier) => {
     if (!looks.length) return;
     const parts = looks.map((look) => {
       const tierData = look.tiers[tier];
       const total = Number(tierData.total_price) || 0;
-      const totalLabel = total > 0 ? ` (Total: ${total} TL)` : "";
+      const totalLabelText = total > 0 ? ` (${totalLabel}: ${formatNumber(total, language)} TL)` : "";
       const description = tierData.description || "";
-      if (!description && !totalLabel) return null;
-      return `**${look.look_name}**: ${description}${totalLabel}`.trim();
+      if (!description && !totalLabelText) return null;
+      return `**${look.look_name}**: ${description}${totalLabelText}`.trim();
     }).filter(Boolean);
 
     let text = parts.join("\n\n");
-    if (!text) text = FALLBACK_REASONING;
+    if (!text) text = fallbackReasoning;
     if (followUpQuestion) text += `\n\n_${followUpQuestion}_`;
     reasoning[tier] = text;
   });
@@ -285,11 +332,24 @@ function buildTierProducts(
   filtered: any[],
   matches: any[],
   fallbackDescription: string,
+  lookLabels: {
+    suggestedItems: string;
+    moreResults: string;
+    moreResultsDescription: string;
+    suggestedDescription: string;
+  },
 ): Record<TierName, AgentResponse["products"]> {
   const tierProducts = createEmptyTierProducts();
 
   (Object.keys(tierProducts) as TierName[]).forEach((tier) => {
-    tierProducts[tier] = buildProductsForTier(looks, tier, filtered, matches, fallbackDescription);
+    tierProducts[tier] = buildProductsForTier(
+      looks,
+      tier,
+      filtered,
+      matches,
+      fallbackDescription,
+      lookLabels,
+    );
   });
 
   return tierProducts;
@@ -301,6 +361,12 @@ function buildProductsForTier(
   filtered: any[],
   matches: any[],
   fallbackDescription: string,
+  lookLabels: {
+    suggestedItems: string;
+    moreResults: string;
+    moreResultsDescription: string;
+    suggestedDescription: string;
+  },
 ): AgentResponse["products"] {
   const products: AgentResponse["products"] = [];
 
@@ -352,8 +418,8 @@ function buildProductsForTier(
       images,
       badges: buildBadges(item.attributes ?? {}),
       similarity: item.similarity,
-      look_name: "More Results",
-      look_description: "Additional matching items from your search",
+      look_name: lookLabels.moreResults,
+      look_description: lookLabels.moreResultsDescription,
     });
   });
 
@@ -373,8 +439,8 @@ function buildProductsForTier(
         images,
         badges: buildBadges(item.attributes ?? {}),
         similarity: item.similarity,
-        look_name: "Suggested Items",
-        look_description: fallbackDescription || "Found some great items for you.",
+        look_name: lookLabels.suggestedItems,
+        look_description: fallbackDescription || lookLabels.suggestedDescription,
       };
     });
   }

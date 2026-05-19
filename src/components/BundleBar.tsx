@@ -1,14 +1,32 @@
 "use client";
 import React, { useState } from "react";
 import type { PaymentPlan } from "@/lib/types";
+import type { Language } from "@/lib/types";
+import { formatNumber } from "@/lib/i18n";
 
 interface BundleBarProps {
   itemCount: number;
   totalPrice: number;
   paymentPlan: PaymentPlan | null;
+  language: Language;
+  bundleTotalLabel: string;
+  addSelectedLabel: string;
+  addedLabel: string;
+  paymentLabel?: string;
+  paymentTip?: string;
 }
 
-export function BundleBar({ itemCount, totalPrice, paymentPlan }: BundleBarProps) {
+export function BundleBar({
+  itemCount,
+  totalPrice,
+  paymentPlan,
+  language,
+  bundleTotalLabel,
+  addSelectedLabel,
+  addedLabel,
+  paymentLabel,
+  paymentTip,
+}: BundleBarProps) {
   const [added, setAdded] = useState(false);
 
   if (itemCount === 0) return null;
@@ -21,8 +39,8 @@ export function BundleBar({ itemCount, totalPrice, paymentPlan }: BundleBarProps
             {itemCount}
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold text-ink-900">Bundle Total</span>
-            <span className="text-lg font-bold text-sage-600">{totalPrice.toLocaleString()} TL</span>
+            <span className="text-sm font-semibold text-ink-900">{bundleTotalLabel}</span>
+            <span className="text-lg font-bold text-sage-600">{formatNumber(totalPrice, language)} TL</span>
           </div>
         </div>
 
@@ -31,10 +49,10 @@ export function BundleBar({ itemCount, totalPrice, paymentPlan }: BundleBarProps
             <span className="text-xl">💳</span>
             <div className="flex flex-col">
               <span className="text-xs font-semibold uppercase tracking-wider text-ink-700">
-                {paymentPlan.label}
+                {paymentLabel || paymentPlan.label}
               </span>
-              {paymentPlan.savings_tip && (
-                <span className="text-xs text-ink-500">{paymentPlan.savings_tip}</span>
+              {(paymentTip || paymentPlan.savings_tip) && (
+                <span className="text-xs text-ink-500">{paymentTip || paymentPlan.savings_tip}</span>
               )}
             </div>
           </div>
@@ -44,7 +62,7 @@ export function BundleBar({ itemCount, totalPrice, paymentPlan }: BundleBarProps
           onClick={() => setAdded(true)}
           className={`rounded-2xl px-8 py-3 text-sm font-semibold text-white transition shadow-md ${added ? 'bg-sage-600 hover:bg-sage-500' : 'bg-ink-900 hover:bg-ink-700'}`}
         >
-          {added ? "Added to Cart ✓" : "Add Selected to Cart"}
+          {added ? addedLabel : addSelectedLabel}
         </button>
       </div>
     </div>

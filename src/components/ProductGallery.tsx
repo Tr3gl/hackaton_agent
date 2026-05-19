@@ -6,9 +6,20 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 interface ProductGalleryProps {
   images: string[];
   name: string;
+  imageUnavailable: string;
+  previousLabel: string;
+  nextLabel: string;
+  thumbnailLabel: string;
 }
 
-export function ProductGallery({ images, name }: ProductGalleryProps) {
+export function ProductGallery({
+  images,
+  name,
+  imageUnavailable,
+  previousLabel,
+  nextLabel,
+  thumbnailLabel,
+}: ProductGalleryProps) {
   const safeImages = useMemo(() => images.filter(Boolean), [images]);
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -37,7 +48,7 @@ export function ProductGallery({ images, name }: ProductGalleryProps) {
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-ink-500">
-            Image unavailable
+            {imageUnavailable}
           </div>
         )}
 
@@ -46,7 +57,7 @@ export function ProductGallery({ images, name }: ProductGalleryProps) {
             <button
               type="button"
               onClick={handlePrev}
-              aria-label="Previous image"
+              aria-label={previousLabel}
               className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 text-ink-900 shadow-sm backdrop-blur hover:bg-white"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -54,7 +65,7 @@ export function ProductGallery({ images, name }: ProductGalleryProps) {
             <button
               type="button"
               onClick={handleNext}
-              aria-label="Next image"
+              aria-label={nextLabel}
               className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/80 p-2 text-ink-900 shadow-sm backdrop-blur hover:bg-white"
             >
               <ChevronRight className="h-5 w-5" />
@@ -76,7 +87,7 @@ export function ProductGallery({ images, name }: ProductGalleryProps) {
             >
               <img
                 src={image}
-                alt={`${name} thumbnail ${index + 1}`}
+                alt={`${name} ${thumbnailLabel} ${index + 1}`}
                 className="h-full w-full object-cover"
               />
             </button>

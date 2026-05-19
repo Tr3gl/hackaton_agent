@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useCallback, useRef } from "react";
+import type { Language } from "@/lib/types";
 
 interface SearchBarProps {
   query: string;
@@ -7,22 +8,40 @@ interface SearchBarProps {
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   loading: boolean;
   onPlaceholderClick: (val: string) => void;
+  language: Language;
+  label: string;
+  placeholder: string;
+  searchButton: string;
+  searchingButton: string;
+  voiceStartTitle: string;
+  voiceStopTitle: string;
+  alertSpeechNotSupported: string;
+  placeholderQueries: string[];
 }
 
-const placeholderQueries = [
-  "warm outfit for windy walk in Istanbul",
-  "casual office look under 5000 TL",
-  "summer vacation in Bodrum",
-];
-
-export function SearchBar({ query, setQuery, onSubmit, loading, onPlaceholderClick }: SearchBarProps) {
+export function SearchBar({
+  query,
+  setQuery,
+  onSubmit,
+  loading,
+  onPlaceholderClick,
+  language,
+  label,
+  placeholder,
+  searchButton,
+  searchingButton,
+  voiceStartTitle,
+  voiceStopTitle,
+  alertSpeechNotSupported,
+  placeholderQueries,
+}: SearchBarProps) {
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   const startListening = useCallback(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert("Speech recognition is not supported in your browser. Try Chrome or Edge.");
+      alert(alertSpeechNotSupported);
       return;
     }
 
@@ -31,7 +50,7 @@ export function SearchBar({ query, setQuery, onSubmit, loading, onPlaceholderCli
     recognition.continuous = false;
     recognition.interimResults = false;
     // Auto-detect language — supports English, Turkish, Russian, etc.
-    recognition.lang = "";
+    recognition.lang = language === "tr" ? "tr-TR" : "en-US";
 
     recognition.onstart = () => setIsListening(true);
     
@@ -65,13 +84,13 @@ export function SearchBar({ query, setQuery, onSubmit, loading, onPlaceholderCli
       className="flex flex-col gap-4 rounded-3xl border border-sand-200 bg-white/80 p-6 shadow-[0_24px_60px_-48px_rgba(31,26,23,0.6)] backdrop-blur"
     >
       <label className="text-sm font-medium uppercase tracking-[0.25em] text-ink-700">
-        Describe what you need
+        {label}
       </label>
       <div className="flex flex-wrap items-center gap-3">
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Try: something warm for a windy evening"
+          placeholder={placeholder}
           className="min-w-[220px] flex-1 rounded-2xl border border-sand-200 bg-white px-4 py-3 text-base text-ink-900 shadow-sm focus:border-sage-400 focus:outline-none focus:ring-2 focus:ring-sage-400/30"
         />
         <button
@@ -82,7 +101,7 @@ export function SearchBar({ query, setQuery, onSubmit, loading, onPlaceholderCli
               ? "border-clay-500 bg-clay-500/10 text-clay-500 animate-pulse shadow-[0_0_12px_rgba(198,106,61,0.3)]" 
               : "border-sand-200 bg-white text-ink-700 hover:bg-sand-50 hover:border-sage-400"
           }`}
-          title={isListening ? "Stop listening" : "Voice input"}
+          title={isListening ? voiceStopTitle : voiceStartTitle}
         >
           {isListening ? "⏹" : "🎤"}
         </button>
@@ -91,7 +110,7 @@ export function SearchBar({ query, setQuery, onSubmit, loading, onPlaceholderCli
           disabled={loading}
           className="rounded-2xl bg-sage-600 px-6 py-3 text-sm font-semibold uppercase tracking-[0.2em] text-white transition hover:bg-sage-400 disabled:cursor-not-allowed disabled:bg-sand-200 disabled:text-ink-700"
         >
-          {loading ? "Searching…" : "Ask Agent"}
+          {loading ? searchingButton : searchButton}
         </button>
       </div>
       <div className="flex flex-wrap gap-2 text-xs text-ink-700">

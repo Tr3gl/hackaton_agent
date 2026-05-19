@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Fraunces, Space_Grotesk } from "next/font/google";
 import "./globals.css";
+import { normalizeLanguage } from "@/lib/i18n";
 
 const displayFont = Fraunces({
   variable: "--font-display",
@@ -17,14 +19,17 @@ export const metadata: Metadata = {
   description: "Contextual fashion search powered by Gemini.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const cookieLang = cookieStore.get("lang")?.value;
+  const language = normalizeLanguage(cookieLang);
   return (
     <html
-      lang="en"
+      lang={language}
       className={`${displayFont.variable} ${bodyFont.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col text-ink-900">

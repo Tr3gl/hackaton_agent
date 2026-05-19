@@ -198,7 +198,7 @@ export function formatToolName(language: Language, tool: string): string {
 export function formatIntentSummary(
   language: Language,
   semanticQueries: string[],
-  filters: Record<string, unknown>,
+  filters: object,
   budget: { min: number | null; max: number | null },
 ): string {
   const queries = semanticQueries.join(" | ");
